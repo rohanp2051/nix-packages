@@ -2,7 +2,7 @@
   lib,
   stdenvNoCC,
   fetchurl,
-  undmg,
+  _7zz,
 }:
 
 stdenvNoCC.mkDerivation {
@@ -14,7 +14,7 @@ stdenvNoCC.mkDerivation {
     hash = "sha256-E1nVdMfKCXrcV+ZpkTUk0abfxOBqickJf0hi3Fb7yx4=";
   };
 
-  nativeBuildInputs = [ undmg ];
+  nativeBuildInputs = [ _7zz ];
   sourceRoot = "Repo Prompt.app";
 
   dontPatch = true;

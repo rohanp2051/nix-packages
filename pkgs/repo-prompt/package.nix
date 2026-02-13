@@ -26,6 +26,10 @@ stdenvNoCC.mkDerivation {
     runHook preInstall
     mkdir -p "$out/Applications/Repo Prompt.app"
     cp -R . "$out/Applications/Repo Prompt.app"
+
+    # 7zz extracts APFS extended attributes as separate files (e.g. "file:com.apple.provenance").
+    # These break code signature verification, so remove them.
+    find "$out" -name '*:com.apple.*' -delete
     runHook postInstall
   '';
 

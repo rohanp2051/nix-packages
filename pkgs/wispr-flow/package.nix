@@ -3,6 +3,7 @@
   stdenvNoCC,
   fetchurl,
   _7zz,
+  asar,
 }:
 
 # Latest version: https://dl.wisprflow.com/wispr-flow/darwin/arm64/RELEASES.json
@@ -15,7 +16,10 @@ stdenvNoCC.mkDerivation {
     hash = "sha256-y+fnowPBmL4yXZcFxnNd3faF6yXCvlJXMdfQRvovipM=";
   };
 
-  nativeBuildInputs = [ _7zz ];
+  nativeBuildInputs = [
+    _7zz
+    asar
+  ];
   sourceRoot = "Flow-v1.4.351/Wispr Flow.app";
 
   dontPatch = true;
@@ -28,9 +32,22 @@ stdenvNoCC.mkDerivation {
     mkdir -p "$out/Applications/Wispr Flow.app"
     cp -R . "$out/Applications/Wispr Flow.app"
 
+    # Patch out the "must be in /Applications" check so the app runs from the Nix store.
+    # The Electron app verifies its path matches /Applications; bypass it for Nix.
+    local asar_dir="$out/Applications/Wispr Flow.app/Contents/Resources"
+    asar extract "$asar_dir/app.asar" "$TMPDIR/asar-contents"
+    substituteInPlace "$TMPDIR/asar-contents/.webpack/main/index.js" \
+      --replace-fail \
+        '"production"===u.M0&&!r' \
+        '"production"===u.M0&&!1'
+    asar pack "$TMPDIR/asar-contents" "$asar_dir/app.asar"
+
     # 7zz extracts APFS extended attributes as separate files (e.g. "file:com.apple.provenance").
     # These break code signature verification, so remove them.
     find "$out" -name '*:com.apple.*' -delete
+
+    # Re-sign with ad-hoc signature since patching the asar invalidates the original.
+    /usr/bin/codesign --force --deep --sign - "$out/Applications/Wispr Flow.app"
     runHook postInstall
   '';
 

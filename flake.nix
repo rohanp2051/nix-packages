@@ -24,6 +24,7 @@
         in
         {
           repo-prompt = pkgs.callPackage ./pkgs/repo-prompt/package.nix {};
+          totalmix-fx = pkgs.callPackage ./pkgs/totalmix-fx/package.nix {};
           wispr-flow = pkgs.callPackage ./pkgs/wispr-flow/package.nix {};
         }
       );

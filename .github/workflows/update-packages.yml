@@ -1,0 +1,187 @@
+name: Update packages
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # Daily at 6am UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-discordchatexporter-gui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - name: Install nix-update
+        run: nix profile install nixpkgs#nix-update
+      - name: Check for update
+        id: update
+        run: |
+          current=$(grep 'version = ' pkgs/discordchatexporter-gui/package.nix | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          nix-update --flake . discordchatexporter-gui
+          updated=$(grep 'version = ' pkgs/discordchatexporter-gui/package.nix | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          if [ "$current" != "$updated" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "version=$updated" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Regenerate NuGet deps
+        if: steps.update.outputs.changed == 'true'
+        run: |
+          fetch_deps=$(nix build '.#packages.x86_64-linux.discordchatexporter-gui.fetch-deps' --print-out-paths --no-link)
+          "$fetch_deps" pkgs/discordchatexporter-gui/deps.json
+      - uses: peter-evans/create-pull-request@v7
+        if: steps.update.outputs.changed == 'true'
+        with:
+          commit-message: "chore(discordchatexporter-gui): update to ${{ steps.update.outputs.version }}"
+          title: "chore(discordchatexporter-gui): update to ${{ steps.update.outputs.version }}"
+          branch: update/discordchatexporter-gui
+          delete-branch: true
+          body: |
+            Automated update of `discordchatexporter-gui` to `${{ steps.update.outputs.version }}`.
+
+            Updated via `nix-update` with regenerated NuGet deps.
+
+  update-wispr-flow:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - name: Check for update
+        id: check
+        run: |
+          current=$(grep '^  version = ' pkgs/wispr-flow/package.nix | sed 's/.*"\(.*\)".*/\1/')
+          latest=$(curl -sf https://dl.wisprflow.com/wispr-flow/darwin/arm64/RELEASES.json | jq -r '
+            if type == "array" then .[0].version
+            elif .version then .version
+            elif .currentRelease then .currentRelease
+            else empty end
+          ')
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "latest=${latest:-}" >> "$GITHUB_OUTPUT"
+          if [ -n "$latest" ] && [ "$current" != "$latest" ]; then
+            echo "update=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "update=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Update package
+        if: steps.check.outputs.update == 'true'
+        env:
+          CURRENT: ${{ steps.check.outputs.current }}
+          LATEST: ${{ steps.check.outputs.latest }}
+        run: |
+          url="https://dl.wisprflow.com/wispr-flow/darwin/arm64/dmgs/Flow-v${LATEST}.dmg"
+          new_hash=$(nix store prefetch-file --json "$url" | jq -r '.hash')
+          sed -i "s|version = \"${CURRENT}\"|version = \"${LATEST}\"|" pkgs/wispr-flow/package.nix
+          sed -i "s|Flow-v${CURRENT}|Flow-v${LATEST}|g" pkgs/wispr-flow/package.nix
+          sed -i "s|hash = \"sha256-[^\"]*\"|hash = \"${new_hash}\"|" pkgs/wispr-flow/package.nix
+      - uses: peter-evans/create-pull-request@v7
+        if: steps.check.outputs.update == 'true'
+        with:
+          commit-message: "chore(wispr-flow): update to ${{ steps.check.outputs.latest }}"
+          title: "chore(wispr-flow): update to ${{ steps.check.outputs.latest }}"
+          branch: update/wispr-flow
+          delete-branch: true
+          body: |
+            Automated update of `wispr-flow` to `${{ steps.check.outputs.latest }}`.
+
+            > **Note**: This package patches the Electron asar bundle. If the build
+            > fails, the patch target may have changed and needs manual attention.
+
+  update-repo-prompt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - name: Check for update
+        id: check
+        run: |
+          current=$(grep '^  version = ' pkgs/repo-prompt/package.nix | sed 's/.*"\(.*\)".*/\1/')
+          # RepoPrompt uses Sparkle for updates; appcast.xml has the latest version
+          appcast=$(curl -sf https://repoprompt.s3.us-east-2.amazonaws.com/appcast.xml)
+          latest=$(echo "$appcast" | grep -o 'sparkle:shortVersionString="[^"]*"' | head -1 | sed 's/.*"\(.*\)"/\1/')
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "latest=${latest:-}" >> "$GITHUB_OUTPUT"
+          if [ -n "$latest" ] && [ "$current" != "$latest" ]; then
+            echo "update=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "update=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Update package
+        if: steps.check.outputs.update == 'true'
+        env:
+          CURRENT: ${{ steps.check.outputs.current }}
+          LATEST: ${{ steps.check.outputs.latest }}
+        run: |
+          url="https://repoprompt.s3.us-east-2.amazonaws.com/RepoPrompt-${LATEST}.dmg"
+          new_hash=$(nix store prefetch-file --json "$url" | jq -r '.hash')
+          sed -i "s|version = \"${CURRENT}\"|version = \"${LATEST}\"|" pkgs/repo-prompt/package.nix
+          sed -i "s|RepoPrompt-${CURRENT}|RepoPrompt-${LATEST}|g" pkgs/repo-prompt/package.nix
+          sed -i "s|hash = \"sha256-[^\"]*\"|hash = \"${new_hash}\"|" pkgs/repo-prompt/package.nix
+      - uses: peter-evans/create-pull-request@v7
+        if: steps.check.outputs.update == 'true'
+        with:
+          commit-message: "chore(repo-prompt): update to ${{ steps.check.outputs.latest }}"
+          title: "chore(repo-prompt): update to ${{ steps.check.outputs.latest }}"
+          branch: update/repo-prompt
+          delete-branch: true
+          body: |
+            Automated update of `repo-prompt` to `${{ steps.check.outputs.latest }}`.
+
+            Version detected via [Sparkle appcast](https://repoprompt.s3.us-east-2.amazonaws.com/appcast.xml).
+
+  update-totalmix-fx:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - name: Check for update
+        id: check
+        run: |
+          current=$(grep '^  version = ' pkgs/totalmix-fx/package.nix | sed 's/.*"\(.*\)".*/\1/')
+          # Scrape the RME downloads page for the TotalMix FX Mac zip filename
+          filename=$(curl -sf https://rme-audio.de/downloads.html | grep -o 'tmfx_mac_[0-9]*\.zip' | head -1)
+          if [ -z "$filename" ]; then
+            echo "update=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Extract version number from filename: tmfx_mac_199.zip -> 199
+          version_num=$(echo "$filename" | sed 's/tmfx_mac_\([0-9]*\)\.zip/\1/')
+          # Convert to dotted version: 199 -> 1.99 (dot before last two digits)
+          latest=$(echo "$version_num" | sed 's/\(.*\)\(..\)$/\1.\2/')
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          echo "filename=$filename" >> "$GITHUB_OUTPUT"
+          if [ "$current" != "$latest" ]; then
+            echo "update=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "update=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Update package
+        if: steps.check.outputs.update == 'true'
+        env:
+          CURRENT: ${{ steps.check.outputs.current }}
+          LATEST: ${{ steps.check.outputs.latest }}
+          FILENAME: ${{ steps.check.outputs.filename }}
+        run: |
+          url="https://rme-audio.de/downloads/${FILENAME}"
+          new_hash=$(nix store prefetch-file --json "$url" | jq -r '.hash')
+          current_num=$(echo "$CURRENT" | tr -d '.')
+          sed -i "s|version = \"${CURRENT}\"|version = \"${LATEST}\"|" pkgs/totalmix-fx/package.nix
+          sed -i "s|tmfx_mac_${current_num}\.zip|${FILENAME}|g" pkgs/totalmix-fx/package.nix
+          sed -i "s|hash = \"sha256-[^\"]*\"|hash = \"${new_hash}\"|" pkgs/totalmix-fx/package.nix
+      - uses: peter-evans/create-pull-request@v7
+        if: steps.check.outputs.update == 'true'
+        with:
+          commit-message: "chore(totalmix-fx): update to ${{ steps.check.outputs.latest }}"
+          title: "chore(totalmix-fx): update to ${{ steps.check.outputs.latest }}"
+          branch: update/totalmix-fx
+          delete-branch: true
+          body: |
+            Automated update of `totalmix-fx` to `${{ steps.check.outputs.latest }}`.
+
+            Version detected from the [RME downloads page](https://rme-audio.de/downloads.html).

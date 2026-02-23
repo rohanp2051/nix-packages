@@ -52,7 +52,8 @@ buildNpmPackage {
 
   postInstall = ''
     wrapProgram $out/bin/playwright-cli \
-      --set PLAYWRIGHT_BROWSERS_PATH ${browsers}
+      --set PLAYWRIGHT_BROWSERS_PATH ${browsers} \
+      --set-default PLAYWRIGHT_MCP_BROWSER chromium
   '';
 
   meta = {

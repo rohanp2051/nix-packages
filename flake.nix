@@ -27,6 +27,7 @@
           totalmix-fx = pkgs.callPackage ./pkgs/totalmix-fx/package.nix {};
           wispr-flow = pkgs.callPackage ./pkgs/wispr-flow/package.nix {};
           discordchatexporter-gui = pkgs.callPackage ./pkgs/discordchatexporter-gui/package.nix {};
+          playwright-cli = pkgs.callPackage ./pkgs/playwright-cli/package.nix {};
         }
       );
     };

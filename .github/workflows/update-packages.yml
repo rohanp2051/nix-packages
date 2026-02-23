@@ -185,3 +185,105 @@ jobs:
             Automated update of `totalmix-fx` to `${{ steps.check.outputs.latest }}`.
 
             Version detected from the [RME downloads page](https://rme-audio.de/downloads.html).
+
+  update-playwright-cli:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - name: Check for update
+        id: check
+        run: |
+          current=$(grep '  version = ' pkgs/playwright-cli/package.nix | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          latest=$(curl -sf https://registry.npmjs.org/@playwright/cli/latest | jq -r .version)
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "latest=${latest:-}" >> "$GITHUB_OUTPUT"
+          if [ -n "$latest" ] && [ "$current" != "$latest" ]; then
+            echo "update=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "update=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Update package
+        if: steps.check.outputs.update == 'true'
+        env:
+          LATEST: ${{ steps.check.outputs.latest }}
+          CURRENT: ${{ steps.check.outputs.current }}
+        run: |
+          set -euo pipefail
+          PKG=pkgs/playwright-cli/package.nix
+
+          # Source hash
+          src_json=$(nix flake prefetch "github:microsoft/playwright-cli/v${LATEST}" --json)
+          src_hash=$(echo "$src_json" | jq -r .hash)
+          src_store=$(echo "$src_json" | jq -r .storePath)
+
+          # npm deps hash
+          npm_hash=$(nix shell nixpkgs#prefetch-npm-deps -c prefetch-npm-deps "${src_store}/package-lock.json" 2>/dev/null | tail -1)
+
+          # Get playwright-core version from package.json, then fetch its browsers.json
+          pw_version=$(jq -r '.dependencies.playwright' "${src_store}/package.json")
+          nix shell nixpkgs#nodejs -c npm pack "playwright-core@${pw_version}" --pack-destination /tmp 2>/dev/null
+          tar -xzf "/tmp/playwright-core-${pw_version}.tgz" -C /tmp package/browsers.json
+
+          # Parse browser revisions and versions
+          chromium_rev=$(jq -r '.browsers[] | select(.name == "chromium") | .revision' /tmp/package/browsers.json)
+          chromium_ver=$(jq -r '.browsers[] | select(.name == "chromium") | .browserVersion' /tmp/package/browsers.json)
+          ffmpeg_rev=$(jq -r '.browsers[] | select(.name == "ffmpeg") | .revision' /tmp/package/browsers.json)
+
+          # Compute fetchzip hashes (stripRoot=false) by triggering hash mismatch
+          compute_hash() {
+            nix build --impure --no-link --expr "
+              (import (builtins.getFlake \"nixpkgs\") {}).fetchzip {
+                url = \"$1\";
+                stripRoot = false;
+                hash = \"sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\";
+              }
+            " 2>&1 | grep "got:" | head -1 | awk '{print $2}'
+          }
+
+          chromium_url="https://cdn.playwright.dev/builds/cft/${chromium_ver}/mac-arm64/chrome-mac-arm64.zip"
+          headless_url="https://cdn.playwright.dev/builds/cft/${chromium_ver}/mac-arm64/chrome-headless-shell-mac-arm64.zip"
+          ffmpeg_url="https://playwright.azureedge.net/builds/ffmpeg/${ffmpeg_rev}/ffmpeg-mac-arm64.zip"
+
+          chromium_hash=$(compute_hash "$chromium_url")
+          headless_hash=$(compute_hash "$headless_url")
+          ffmpeg_hash=$(compute_hash "$ffmpeg_url")
+
+          # Update version and tag
+          sed -i "s|version = \"${CURRENT}\"|version = \"${LATEST}\"|" "$PKG"
+          sed -i "s|tag = \"v${CURRENT}\"|tag = \"v${LATEST}\"|" "$PKG"
+
+          # Update source hash (line after tag)
+          sed -i "/tag = \"v${LATEST}\";/{n;s|hash = \"[^\"]*\"|hash = \"${src_hash}\"|}" "$PKG"
+
+          # Update npm deps hash
+          sed -i "s|npmDepsHash = \"[^\"]*\"|npmDepsHash = \"${npm_hash}\"|" "$PKG"
+
+          # Update browser URLs
+          sed -i "s|/cft/[^/]*/mac-arm64/chrome-mac-arm64\.zip|/cft/${chromium_ver}/mac-arm64/chrome-mac-arm64.zip|" "$PKG"
+          sed -i "s|/cft/[^/]*/mac-arm64/chrome-headless-shell-mac-arm64\.zip|/cft/${chromium_ver}/mac-arm64/chrome-headless-shell-mac-arm64.zip|" "$PKG"
+          sed -i "s|/ffmpeg/[0-9]*/ffmpeg-mac-arm64\.zip|/ffmpeg/${ffmpeg_rev}/ffmpeg-mac-arm64.zip|" "$PKG"
+
+          # Update browser hashes (each hash is 2 lines after its URL: url, stripRoot, hash)
+          sed -i "/chrome-mac-arm64\.zip/{/headless/!{n;n;s|hash = \"[^\"]*\"|hash = \"${chromium_hash}\"|}}" "$PKG"
+          sed -i "/chrome-headless-shell-mac-arm64\.zip/{n;n;s|hash = \"[^\"]*\"|hash = \"${headless_hash}\"|}" "$PKG"
+          sed -i "/ffmpeg-mac-arm64\.zip/{n;n;s|hash = \"[^\"]*\"|hash = \"${ffmpeg_hash}\"|}" "$PKG"
+
+          # Update linkFarm directory names
+          sed -i "s|\"chromium-[0-9]*\"|\"chromium-${chromium_rev}\"|" "$PKG"
+          sed -i "s|\"chromium_headless_shell-[0-9]*\"|\"chromium_headless_shell-${chromium_rev}\"|" "$PKG"
+          sed -i "s|\"ffmpeg-[0-9]*\"|\"ffmpeg-${ffmpeg_rev}\"|" "$PKG"
+
+          # Update comment
+          sed -i "s|# Browser revisions from playwright-core [^ ]*|# Browser revisions from playwright-core ${pw_version}|" "$PKG"
+      - uses: peter-evans/create-pull-request@v7
+        if: steps.check.outputs.update == 'true'
+        with:
+          commit-message: "chore(playwright-cli): update to ${{ steps.check.outputs.latest }}"
+          title: "chore(playwright-cli): update to ${{ steps.check.outputs.latest }}"
+          branch: update/playwright-cli
+          delete-branch: true
+          body: |
+            Automated update of `playwright-cli` to `${{ steps.check.outputs.latest }}`.
+
+            Updated source, npm deps, and browser binaries (Chromium, headless shell, ffmpeg).

@@ -38,8 +38,8 @@ stdenvNoCC.mkDerivation {
     asar extract "$asar_dir/app.asar" "$TMPDIR/asar-contents"
     substituteInPlace "$TMPDIR/asar-contents/.webpack/main/index.js" \
       --replace-fail \
-        '"production"===u.M0&&!r' \
-        '"production"===u.M0&&!1'
+        '"production"===f.M0&&!r' \
+        '"production"===f.M0&&!1'
     asar pack "$TMPDIR/asar-contents" "$asar_dir/app.asar"
 
     # 7zz extracts APFS extended attributes as separate files (e.g. "file:com.apple.provenance").

@@ -36,10 +36,14 @@ stdenvNoCC.mkDerivation {
     # The Electron app verifies its path matches /Applications; bypass it for Nix.
     local asar_dir="$out/Applications/Wispr Flow.app/Contents/Resources"
     asar extract "$asar_dir/app.asar" "$TMPDIR/asar-contents"
-    substituteInPlace "$TMPDIR/asar-contents/.webpack/main/index.js" \
-      --replace-fail \
-        '"production"===f.M0&&!r' \
-        '"production"===f.M0&&!1'
+    sed -i 's/"production"===\([a-zA-Z_$][a-zA-Z0-9_$.]*\)&&!r/"production"===\1\&\&!1/' \
+      "$TMPDIR/asar-contents/.webpack/main/index.js"
+
+    # Verify the patch applied (fail the build if the pattern wasn't found)
+    if ! grep -q '"production"===.*&&!1' "$TMPDIR/asar-contents/.webpack/main/index.js"; then
+      echo "ERROR: Failed to patch /Applications folder check — pattern may have changed" >&2
+      exit 1
+    fi
     asar pack "$TMPDIR/asar-contents" "$asar_dir/app.asar"
 
     # 7zz extracts APFS extended attributes as separate files (e.g. "file:com.apple.provenance").

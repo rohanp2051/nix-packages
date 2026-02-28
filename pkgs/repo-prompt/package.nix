@@ -7,11 +7,11 @@
 
 stdenvNoCC.mkDerivation {
   pname = "repo-prompt";
-  version = "2.0.10";
+  version = "2.0.11";
 
   src = fetchurl {
-    url = "https://repoprompt.s3.us-east-2.amazonaws.com/RepoPrompt-2.0.10.dmg";
-    hash = "sha256-J17QInAzj3q0g3aZgrgZEoq7y9d8g4eV2Hgg0l8nwd4=";
+    url = "https://repoprompt.s3.us-east-2.amazonaws.com/RepoPrompt-2.0.11.dmg";
+    hash = "sha256-ptONmPsZJu0svcxeQqd7+QC8dTnvHmdenZD1h5Hes48=";
   };
 
   nativeBuildInputs = [ _7zz ];

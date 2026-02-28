@@ -50,8 +50,14 @@ stdenvNoCC.mkDerivation {
     # These break code signature verification, so remove them.
     find "$out" -name '*:com.apple.*' -delete
 
-    # Re-sign with ad-hoc signature since patching the asar invalidates the original.
-    /usr/bin/codesign --force --deep --sign - "$out/Applications/Wispr Flow.app"
+    # Extract original entitlements so they survive re-signing (mic, camera, JIT, etc.).
+    /usr/bin/codesign -d --entitlements :"$TMPDIR/entitlements.plist" \
+      "$out/Applications/Wispr Flow.app"
+
+    # Re-sign with ad-hoc signature, preserving entitlements.
+    /usr/bin/codesign --force --deep --sign - \
+      --entitlements "$TMPDIR/entitlements.plist" \
+      "$out/Applications/Wispr Flow.app"
     runHook postInstall
   '';
 

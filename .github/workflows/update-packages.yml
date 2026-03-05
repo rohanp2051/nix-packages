@@ -21,7 +21,7 @@ jobs:
         id: update
         run: |
           current=$(grep 'version = ' pkgs/discordchatexporter-gui/package.nix | head -1 | sed 's/.*"\(.*\)".*/\1/')
-          nix-update --flake discordchatexporter-gui
+          nix-update --flake --src-only discordchatexporter-gui
           updated=$(grep 'version = ' pkgs/discordchatexporter-gui/package.nix | head -1 | sed 's/.*"\(.*\)".*/\1/')
           if [ "$current" != "$updated" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"

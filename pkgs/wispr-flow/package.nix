@@ -9,18 +9,18 @@
 # Latest version: https://dl.wisprflow.com/wispr-flow/darwin/arm64/RELEASES.json
 stdenvNoCC.mkDerivation {
   pname = "wispr-flow";
-  version = "1.4.465";
+  version = "1.4.484";
 
   src = fetchurl {
-    url = "https://dl.wisprflow.com/wispr-flow/darwin/arm64/dmgs/Flow-v1.4.465.dmg";
-    hash = "sha256-PYnOPF8iRuf4ez5lzRz0zR/sy/wnmypPnldCapeM7No=";
+    url = "https://dl.wisprflow.com/wispr-flow/darwin/arm64/dmgs/Flow-v1.4.484.dmg";
+    hash = "sha256-TKudz+CkLxo8qYxlLRilSR7qDZNDwAELJosVm/zMDSU=";
   };
 
   nativeBuildInputs = [
     _7zz
     asar
   ];
-  sourceRoot = "Flow-v1.4.465/Wispr Flow.app";
+  sourceRoot = "Flow-v1.4.484/Wispr Flow.app";
 
   dontPatch = true;
   dontConfigure = true;

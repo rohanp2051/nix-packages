@@ -8,13 +8,13 @@
 
 buildDotnetModule (finalAttrs: {
   pname = "discordchatexporter-gui";
-  version = "2.46.1";
+  version = "2.47";
 
   src = fetchFromGitHub {
     owner = "Tyrrrz";
     repo = "DiscordChatExporter";
     rev = finalAttrs.version;
-    hash = "sha256-8U+/14IBU6Z/DiqekqSexxVKXFIw420kVBn/O0uSeco=";
+    hash = "sha256-JgD+LIr+lgmi8CQJdMJDmLTD1jIf1Io2NcbCVCaqAbk=";
   };
 
   dotnet-sdk = dotnetCorePackages.sdk_10_0;

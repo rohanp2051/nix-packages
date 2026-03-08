@@ -150,6 +150,11 @@
     "hash": "sha256-vhuDDUSzDS5u9dfup0qk6j7Vc9i8Wyo7dBivpVaEpDw="
   },
   {
+    "pname": "Markdig",
+    "version": "1.0.0",
+    "hash": "sha256-uA76OfYFnZmNZ5OVislm9gxVpGyPiX1oYwBEFuU6xUE="
+  },
+  {
     "pname": "Material.Avalonia",
     "version": "3.9.2",
     "hash": "sha256-CZRVo/i3qUE5Qj7H2yCrtV8ThDOfjMWTyGHLm0/Bajw="
@@ -228,6 +233,16 @@
     "pname": "Superpower",
     "version": "3.1.0",
     "hash": "sha256-krsT4LFDHeCjwS0BbkgpBYggpr5Nmc1RXYyOjLqRifQ="
+  },
+  {
+    "pname": "ThisAssembly.Constants",
+    "version": "2.1.2",
+    "hash": "sha256-SZ1aQW/Ynt9H/gr1N3NYg4D27BBagHpF7OPqOIas6l0="
+  },
+  {
+    "pname": "ThisAssembly.Project",
+    "version": "2.1.2",
+    "hash": "sha256-IIlqnK37afpCMBdDNqsLbpX8dv6+c0mNen6pkRqDADw="
   },
   {
     "pname": "Tmds.DBus.Protocol",

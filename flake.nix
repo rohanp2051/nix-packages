@@ -30,6 +30,7 @@
           bisq = pkgs.callPackage ./pkgs/bisq/package.nix {};
           bisq2 = pkgs.callPackage ./pkgs/bisq2/package.nix {};
           playwright-cli = pkgs.callPackage ./pkgs/playwright-cli/package.nix {};
+          thaw = pkgs.callPackage ./pkgs/thaw/package.nix {};
         }
       );
     };

@@ -363,3 +363,42 @@ jobs:
             Automated update of `playwright-cli` to `${{ steps.check.outputs.latest }}`.
 
             Updated source, npm deps, and browser binaries (Chromium, headless shell, ffmpeg).
+
+  update-thaw:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - name: Check for update
+        id: check
+        run: |
+          current=$(grep '^  version = ' pkgs/thaw/package.nix | sed 's/.*"\(.*\)".*/\1/')
+          latest=$(curl -sf https://api.github.com/repos/stonerl/Thaw/releases/latest | jq -r '.tag_name')
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "latest=${latest:-}" >> "$GITHUB_OUTPUT"
+          if [ -n "$latest" ] && [ "$current" != "$latest" ]; then
+            echo "update=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "update=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Update package
+        if: steps.check.outputs.update == 'true'
+        env:
+          CURRENT: ${{ steps.check.outputs.current }}
+          LATEST: ${{ steps.check.outputs.latest }}
+        run: |
+          url="https://github.com/stonerl/Thaw/releases/download/${LATEST}/Thaw_${LATEST}.zip"
+          new_hash=$(nix store prefetch-file --json "$url" | jq -r '.hash')
+          sed -i "s|version = \"${CURRENT}\"|version = \"${LATEST}\"|" pkgs/thaw/package.nix
+          sed -i "s|Thaw_${CURRENT}|Thaw_${LATEST}|g" pkgs/thaw/package.nix
+          sed -i "s|/download/${CURRENT}/|/download/${LATEST}/|" pkgs/thaw/package.nix
+          sed -i "s|hash = \"sha256-[^\"]*\"|hash = \"${new_hash}\"|" pkgs/thaw/package.nix
+      - uses: peter-evans/create-pull-request@v7
+        if: steps.check.outputs.update == 'true'
+        with:
+          commit-message: "chore(thaw): update to ${{ steps.check.outputs.latest }}"
+          title: "chore(thaw): update to ${{ steps.check.outputs.latest }}"
+          branch: update/thaw
+          delete-branch: true
+          body: |
+            Automated update of `thaw` to `${{ steps.check.outputs.latest }}`.

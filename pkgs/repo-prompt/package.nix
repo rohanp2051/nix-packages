@@ -44,6 +44,12 @@ stdenvNoCC.mkDerivation {
     /usr/bin/codesign -d --entitlements :"$TMPDIR/entitlements.plist" \
       "$out/Applications/RepoPrompt CE.app"
 
+    # These two entitlements are tied to the developer's real Apple provisioning
+    # profile. Ad-hoc re-signing can't satisfy them, and AMFI SIGKILLs the process
+    # at launch if they're left in, so drop them before re-signing.
+    /usr/libexec/PlistBuddy -c "Delete :com.apple.application-identifier" "$TMPDIR/entitlements.plist"
+    /usr/libexec/PlistBuddy -c "Delete :com.apple.developer.team-identifier" "$TMPDIR/entitlements.plist"
+
     # Re-sign with ad-hoc signature, preserving entitlements.
     /usr/bin/codesign --force --deep --sign - \
       --entitlements "$TMPDIR/entitlements.plist" \

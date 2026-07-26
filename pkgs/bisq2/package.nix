@@ -10,7 +10,7 @@ stdenvNoCC.mkDerivation {
   version = "2.1.11";
 
   src = fetchurl {
-    url = "https://github.com/bisq-network/bisq2/releases/download/v2.1.9/Bisq-2.1.11.dmg";
+    url = "https://github.com/bisq-network/bisq2/releases/download/v2.1.11/Bisq-2.1.11.dmg";
     hash = "sha256-9BUDeWO13D0McR7jivpZ8ubsq3qu450O0DXMpzPgX5Y=";
   };
 

@@ -7,15 +7,28 @@
 
 stdenvNoCC.mkDerivation {
   pname = "repo-prompt";
-  version = "2.1.33";
+  version = "1.1.0";
 
   src = fetchurl {
-    url = "https://repoprompt.s3.us-east-2.amazonaws.com/RepoPrompt-2.1.33.dmg";
-    hash = "sha256-iTHslFCgFG4hLzaj91pblQo9S01EF0brTyk657pULFc=";
+    url = "https://github.com/repoprompt/repoprompt-ce/releases/download/v1.1.0/RepoPrompt-1.1.0-31.dmg";
+    hash = "sha256-dWGHO1PaAxVh8fOu4QLu8ElL/vWZgpGo1U1S3H8Ax5E=";
   };
 
   nativeBuildInputs = [ _7zz ];
-  sourceRoot = "Repo Prompt.app";
+  sourceRoot = "RepoPrompt CE.app";
+
+  # 7zz refuses to extract relative symlinks ("Dangerous link path").
+  # Extract with 7zz (tolerating the error), then recreate the symlinks.
+  unpackPhase = ''
+    runHook preUnpack
+    7zz x -snld "$src" || true
+    ln -sf ../MacOS/repoprompt-mcp "RepoPrompt CE.app/Contents/Resources/repoprompt-mcp"
+    mkdir -p "RepoPrompt CE.app/Contents/Resources/bin"
+    ln -sf ../../MacOS/repoprompt-mcp "RepoPrompt CE.app/Contents/Resources/bin/repoprompt-mcp"
+    # Remove APFS extended attribute files that break code signatures.
+    find . -name '*:com.apple.*' -delete
+    runHook postUnpack
+  '';
 
   dontPatch = true;
   dontConfigure = true;
@@ -24,20 +37,25 @@ stdenvNoCC.mkDerivation {
 
   installPhase = ''
     runHook preInstall
-    mkdir -p "$out/Applications/Repo Prompt.app"
-    cp -R . "$out/Applications/Repo Prompt.app"
+    mkdir -p "$out/Applications/RepoPrompt CE.app"
+    cp -R . "$out/Applications/RepoPrompt CE.app"
 
-    # 7zz extracts APFS extended attributes as separate files (e.g. "file:com.apple.provenance").
-    # These break code signature verification, so remove them.
-    find "$out" -name '*:com.apple.*' -delete
+    # Extract original entitlements so they survive re-signing.
+    /usr/bin/codesign -d --entitlements :"$TMPDIR/entitlements.plist" \
+      "$out/Applications/RepoPrompt CE.app"
+
+    # Re-sign with ad-hoc signature, preserving entitlements.
+    /usr/bin/codesign --force --deep --sign - \
+      --entitlements "$TMPDIR/entitlements.plist" \
+      "$out/Applications/RepoPrompt CE.app"
     runHook postInstall
   '';
 
   meta = {
-    description = "Generate prompts from your codebase for LLMs";
-    homepage = "https://repoprompt.com/";
-    license = lib.licenses.unfree;
-    platforms = lib.platforms.darwin;
+    description = "Context engineering app for AI coding agents";
+    homepage = "https://github.com/repoprompt/repoprompt-ce";
+    license = lib.licenses.asl20;
+    platforms = [ "aarch64-darwin" ];
     sourceProvenance = with lib.sourceTypes; [ binaryNativeCode ];
   };
 }

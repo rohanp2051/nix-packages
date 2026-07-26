@@ -101,11 +101,12 @@ jobs:
         id: check
         run: |
           current=$(grep '^  version = ' pkgs/repo-prompt/package.nix | sed 's/.*"\(.*\)".*/\1/')
-          # RepoPrompt uses Sparkle for updates; appcast.xml has the latest version
-          appcast=$(curl -sf https://repoprompt.s3.us-east-2.amazonaws.com/appcast.xml)
-          latest=$(echo "$appcast" | grep -o '<sparkle:shortVersionString>[^<]*</sparkle:shortVersionString>' | head -1 | sed 's/<[^>]*>//g')
+          release=$(curl -sf https://api.github.com/repos/repoprompt/repoprompt-ce/releases/latest)
+          latest=$(echo "$release" | jq -r '.tag_name' | sed 's/^v//')
+          dmg_name=$(echo "$release" | jq -r '[.assets[] | select(.name | endswith(".dmg")) | .name][0]')
           echo "current=$current" >> "$GITHUB_OUTPUT"
           echo "latest=${latest:-}" >> "$GITHUB_OUTPUT"
+          echo "dmg_name=${dmg_name:-}" >> "$GITHUB_OUTPUT"
           if [ -n "$latest" ] && [ "$current" != "$latest" ]; then
             echo "update=true" >> "$GITHUB_OUTPUT"
           else
@@ -116,11 +117,14 @@ jobs:
         env:
           CURRENT: ${{ steps.check.outputs.current }}
           LATEST: ${{ steps.check.outputs.latest }}
+          DMG_NAME: ${{ steps.check.outputs.dmg_name }}
         run: |
-          url="https://repoprompt.s3.us-east-2.amazonaws.com/RepoPrompt-${LATEST}.dmg"
+          url="https://github.com/repoprompt/repoprompt-ce/releases/download/v${LATEST}/${DMG_NAME}"
           new_hash=$(nix store prefetch-file --json "$url" | jq -r '.hash')
+          current_dmg=$(grep -o 'RepoPrompt-[^"]*\.dmg' pkgs/repo-prompt/package.nix)
           sed -i "s|version = \"${CURRENT}\"|version = \"${LATEST}\"|" pkgs/repo-prompt/package.nix
-          sed -i "s|RepoPrompt-${CURRENT}|RepoPrompt-${LATEST}|g" pkgs/repo-prompt/package.nix
+          sed -i "s|/download/v${CURRENT}/|/download/v${LATEST}/|" pkgs/repo-prompt/package.nix
+          sed -i "s|${current_dmg}|${DMG_NAME}|" pkgs/repo-prompt/package.nix
           sed -i "s|hash = \"sha256-[^\"]*\"|hash = \"${new_hash}\"|" pkgs/repo-prompt/package.nix
       - uses: peter-evans/create-pull-request@v7
         if: steps.check.outputs.update == 'true'
@@ -131,8 +135,6 @@ jobs:
           delete-branch: true
           body: |
             Automated update of `repo-prompt` to `${{ steps.check.outputs.latest }}`.
-
-            Version detected via [Sparkle appcast](https://repoprompt.s3.us-east-2.amazonaws.com/appcast.xml).
 
   update-totalmix-fx:
     runs-on: ubuntu-latest

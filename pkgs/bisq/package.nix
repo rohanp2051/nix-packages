@@ -15,7 +15,7 @@ in
 
 stdenvNoCC.mkDerivation {
   pname = "bisq";
-  version = "1.10.4";
+  version = "1.10.7";
 
   src = fetchurl {
     url = "https://github.com/bisq-network/bisq/releases/download/v1.10.4/Bisq-${arch}-1.10.4.dmg";

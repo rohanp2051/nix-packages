@@ -7,11 +7,11 @@
 
 stdenvNoCC.mkDerivation {
   pname = "bisq2";
-  version = "2.1.11";
+  version = "2.1.14";
 
   src = fetchurl {
-    url = "https://github.com/bisq-network/bisq2/releases/download/v2.1.11/Bisq-2.1.11.dmg";
-    hash = "sha256-9BUDeWO13D0McR7jivpZ8ubsq3qu450O0DXMpzPgX5Y=";
+    url = "https://github.com/bisq-network/bisq2/releases/download/v2.1.11/Bisq-2.1.14.dmg";
+    hash = "sha256-VAqOpXJYUIGB0KQr1iXiN9U1pxo/2yxdkAvysn2Xag4=";
   };
 
   nativeBuildInputs = [ _7zz ];

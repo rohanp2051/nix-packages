@@ -7,11 +7,11 @@
 
 stdenvNoCC.mkDerivation {
   pname = "repo-prompt";
-  version = "1.1.0";
+  version = "1.9.0";
 
   src = fetchurl {
-    url = "https://github.com/repoprompt/repoprompt-ce/releases/download/v1.1.0/RepoPrompt-1.1.0-31.dmg";
-    hash = "sha256-dWGHO1PaAxVh8fOu4QLu8ElL/vWZgpGo1U1S3H8Ax5E=";
+    url = "https://github.com/repoprompt/repoprompt-ce/releases/download/v1.9.0/RepoPrompt-1.9.0-43.dmg";
+    hash = "sha256-7MvZDKWGK2IHkXu38+JErV2u4d3wMTu757CJ0pFZBN8=";
   };
 
   nativeBuildInputs = [ _7zz ];
